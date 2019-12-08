@@ -2,14 +2,21 @@
   <yandex-map
           :coords="map.coords"
           :zoom="map.zoom"
-          :bounds="mapBounds">
-    <ymap-marker
-            v-for="(track, idx) in tracks"
-            marker-type="polyline"
-            :marker-stroke="getTrackStyle()"
-            :marker-id="idx"
-            :coords="getTrackLine(track)"
-            :key="idx" />
+          :bounds="map.bounds">
+    <template v-for="(track, tid) in tracks">
+      <ymap-marker
+              marker-type="polyline"
+              :marker-stroke="getTrackStyle()"
+              :marker-id="tid"
+              :coords="getTrackLine(track)"
+              :key="tid" />
+      <!--ymap-marker
+              v-for="(checkpoint, cid) in track"
+              marker-type="placemark"
+              :marker-id="`${tid}_${cid}`"
+              :coords="[checkpoint.latitude, checkpoint.longitude]"
+              :key="cid" /-->
+    </template>
   </yandex-map>
 </template>
 
@@ -24,16 +31,15 @@ export default {
     return {
       map: {
         coords: [0, 0],
-        zoom: 4
+        zoom: 4,
+        bounds: [[-45, -90], [45, 90]]
       },
       tracks: []
     }
   },
-  firebase: {
-    tracks: db.ref('checkpoints')
-  },
-  computed: {
-    mapBounds () {
+  computed: {},
+  methods: {
+    getMapBounds () {
       let latMin = 90
       let latMax = -90
       let lngMin = 180
@@ -52,9 +58,7 @@ export default {
         [latMin, lngMin],
         [latMax, lngMax]
       ]
-    }
-  },
-  methods: {
+    },
     getTrackLine (track) {
       let trackLine = []
 
@@ -69,10 +73,19 @@ export default {
     },
     getTrackStyle () {
       return {
-        color: 'b22222', // Math.random().toString(16).substr(-6)
+        color: 'b22222',
         width: 3
       }
     }
+  },
+  mounted () {
+    this.$rtdbBind('tracks', db.ref('checkpoints'))
+      .then((data) => {
+        this.map.bounds = this.getMapBounds()
+      })
+      .catch((error) => {
+        console.log(`[Error] ${error.message}`)
+      })
   }
 }
 </script>
