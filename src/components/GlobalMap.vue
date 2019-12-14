@@ -3,19 +3,14 @@
           :coords="map.coords"
           :zoom="map.zoom"
           :bounds="map.bounds">
-    <template v-for="(track, tid) in tracks">
+    <template v-for="(track, tid) in freshTracks">
       <ymap-marker
+              v-for="(trackSection, sid) in getTrackSections(track)"
               marker-type="polyline"
-              :marker-stroke="getTrackStyle()"
-              :marker-id="tid"
-              :coords="getTrackLine(track)"
-              :key="tid" />
-      <!--ymap-marker
-              v-for="(checkpoint, cid) in track"
-              marker-type="placemark"
-              :marker-id="`${tid}_${cid}`"
-              :coords="[checkpoint.latitude, checkpoint.longitude]"
-              :key="cid" /-->
+              :marker-stroke="trackSection.style"
+              :marker-id="`${tid}_${sid}`"
+              :coords="trackSection.points"
+              :key="`${tid}_${sid}`" />
     </template>
   </yandex-map>
 </template>
@@ -37,7 +32,17 @@ export default {
       tracks: []
     }
   },
-  computed: {},
+  computed: {
+    freshTracks () {
+      let tracks = []
+      this.tracks.forEach((track) => {
+        tracks.push(Array.from(Object.entries(track.checkpoints)).filter((point) => {
+          return (Date.now() - point[1].fixedAt) / 1000 < 60 * 60 // checkpoints for last hour
+        }))
+      })
+      return tracks
+    }
+  },
   methods: {
     getMapBounds () {
       let latMin = 90
@@ -45,8 +50,8 @@ export default {
       let lngMin = 180
       let lngMax = -180
 
-      Array.from(this.tracks).forEach((track) => {
-        Array.from(Object.entries(track)).forEach((checkpoint) => {
+      this.tracks.forEach((track) => {
+        Array.from(Object.entries(track.checkpoints)).forEach((checkpoint) => {
           if (checkpoint[1].latitude < latMin) { latMin = checkpoint[1].latitude }
           if (checkpoint[1].latitude > latMax) { latMax = checkpoint[1].latitude }
           if (checkpoint[1].longitude < lngMin) { lngMin = checkpoint[1].longitude }
@@ -59,27 +64,26 @@ export default {
         [latMax, lngMax]
       ]
     },
-    getTrackLine (track) {
-      let trackLine = []
-
-      Array.from(Object.entries(track)).forEach((checkpoint) => {
-        trackLine.push([
-          checkpoint[1].latitude,
-          checkpoint[1].longitude
-        ])
-      })
-
-      return trackLine
-    },
-    getTrackStyle () {
-      return {
-        color: 'b22222',
-        width: 3
+    getTrackSections (track) {
+      let sections = []
+      for (let i = 0; i < track.length - 1; i++) {
+        sections.push({
+          points: [
+            [ track[i][1].latitude, track[i][1].longitude ],
+            [ track[i + 1][1].latitude, track[i + 1][1].longitude ]
+          ],
+          style: {
+            color: 'b22222',
+            opacity: 1 - (Date.now() - track[i + 1][1].fixedAt) / 3600000,
+            width: 3
+          }
+        })
       }
+      return sections
     }
   },
   mounted () {
-    this.$rtdbBind('tracks', db.ref('checkpoints'))
+    this.$rtdbBind('tracks', db.ref('users/public'))
       .then((data) => {
         this.map.bounds = this.getMapBounds()
       })
