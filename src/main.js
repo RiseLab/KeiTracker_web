@@ -6,6 +6,9 @@ import Vue from 'vue'
 import App from './App'
 import router from './router'
 
+import VueMarkdown from 'vue-markdown'
+Vue.component('vue-markdown', VueMarkdown)
+
 Vue.use(rtdbPlugin)
 
 Vue.config.productionTip = false
