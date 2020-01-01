@@ -29,7 +29,9 @@ export default {
         zoom: 4,
         bounds: [[-45, -90], [45, 90]]
       },
-      tracks: []
+      tracks: [],
+      now: Date.now(),
+      maxHoursAgo: 1
     }
   },
   computed: {
@@ -37,7 +39,7 @@ export default {
       let tracks = []
       this.tracks.forEach((track) => {
         tracks.push(Array.from(Object.entries(track.checkpoints)).filter((point) => {
-          return (Date.now() - point[1].fixedAt) / 1000 < 60 * 60 // checkpoints for last hour
+          return (this.now - point[1].fixedAt) / 1000 < 60 * 60 * this.maxHoursAgo // checkpoints for last hour
         }))
       })
       return tracks
@@ -74,13 +76,18 @@ export default {
           ],
           style: {
             color: 'b22222',
-            opacity: 1 - (Date.now() - track[i + 1][1].fixedAt) / 3600000,
+            opacity: this.maxHoursAgo - (Date.now() - track[i + 1][1].fixedAt) / 3600000,
             width: 3
           }
         })
       }
       return sections
     }
+  },
+  created () {
+    setInterval(() => {
+      this.now = Date.now()
+    }, 60000)
   },
   mounted () {
     this.$rtdbBind('tracks', db.ref('users/public'))
